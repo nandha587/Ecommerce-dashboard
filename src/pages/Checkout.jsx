@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { useOrders } from '../context/OrderContext';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Trash2, Minus, Plus, CreditCard } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-// Use a mock test key for Stripe
 const stripePromise = loadStripe('pk_test_TYooMQauvdEDq54NiTphI7jx');
 
 const CheckoutForm = ({ total, onSuccess }) => {
@@ -15,7 +17,6 @@ const CheckoutForm = ({ total, onSuccess }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    
     if (!stripe || !elements) return;
 
     setProcessing(true);
@@ -70,9 +71,20 @@ const CheckoutForm = ({ total, onSuccess }) => {
 
 export default function Checkout() {
   const { cartItems, updateQuantity, removeFromCart, cartTotal, clearCart } = useCart();
+  const { currentUser } = useAuth();
+  const { addOrder } = useOrders();
+  const navigate = useNavigate();
   const [success, setSuccess] = useState(false);
 
   const handleSuccess = (paymentMethod) => {
+    // Save order
+    addOrder({
+      userId: currentUser.uid || currentUser.email,
+      items: [...cartItems],
+      total: cartTotal,
+      paymentMethodId: paymentMethod.id
+    });
+    
     setSuccess(true);
     clearCart();
   };
@@ -85,7 +97,10 @@ export default function Checkout() {
           <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
             Thank you for your purchase. Your order has been processed securely.
           </p>
-          <a href="/" className="btn btn-primary">Return to Shop</a>
+          <div className="flex gap-4 justify-center">
+            <button onClick={() => navigate('/profile')} className="btn btn-primary">View Order History</button>
+            <button onClick={() => navigate('/')} className="btn btn-outline">Return to Shop</button>
+          </div>
         </div>
       </div>
     );
@@ -98,7 +113,7 @@ export default function Checkout() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
         
         {/* Cart Review Section */}
-        <div className="glass-card" style={{ padding: '1.5rem' }}>
+        <div className="glass-card" style={{ padding: '1.5rem', height: 'fit-content' }}>
           <h3 style={{ marginBottom: '1.5rem' }}>Order Summary</h3>
           {cartItems.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)' }}>Your cart is empty.</p>
